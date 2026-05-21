@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>클라이밍장 랜덤 룰렛</title>
+  <meta name="description" content="서울·경기권 클라이밍장 랜덤 룰렛" />
+  <style>
+    :root {
+      --bg: #f6f1e8;
+      --card: rgba(255, 255, 255, 0.88);
+      --text: #152033;
+      --muted: #667085;
+      --line: rgba(21, 32, 51, 0.12);
+      --orange: #ff7a1a;
+      --orange-dark: #e85f00;
+      --blue: #2563eb;
+      --shadow: 0 24px 70px rgba(36, 24, 9, 0.16);
+      --wheel-size: min(86vw, 680px);
+      --spin-duration: 4200ms;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        "Pretendard",
+        "Noto Sans KR",
+        "Apple SD Gothic Neo",
+        sans-serif;
+      color: var(--text);
+      text-align: center;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(255, 205, 128, 0.35), transparent 30%),
+        radial-gradient(circle at 85% 20%, rgba(106, 177, 255, 0.22), transparent 28%),
+        linear-gradient(180deg, #fffaf1 0%, var(--bg) 100%);
+      overflow-x: hidden;
+    }
+
+    .page {
+      width: min(960px, 100%);
+      margin: 0 auto;
+      padding: 28px 16px 44px;
+    }
+
+    .hero {
+      margin: 0 auto 18px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      margin-bottom: 10px;
+      border: 1px solid rgba(255, 122, 26, 0.25);
+      border-radius: 999px;
+      color: #a64b00;
+      background: rgba(255, 255, 255, 0.66);
+      font-size: 14px;
+      font-weight: 700;
+      box-shadow: 0 10px 24px rgba(255, 122, 26, 0.08);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(32px, 6vw, 56px);
+      line-height: 1.05;
+      letter-spacing: -0.06em;
+      color: #111827;
+    }
+
+    .subtitle {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: clamp(15px, 2.5vw, 18px);
+      font-weight: 650;
+    }
+
+    .roulette-card {
+      position: relative;
+      width: min(900px, 100%);
+      margin: 0 auto;
+      padding: clamp(16px, 3vw, 28px);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      border-radius: 36px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.72)),
+        radial-gradient(circle at 50% 0%, rgba(255, 122, 26, 0.11), transparent 46%);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .wheel-wrap {
+      position: relative;
+      width: var(--wheel-size);
+      height: var(--wheel-size);
+      margin: 0 auto;
+      filter: drop-shadow(0 18px 28px rgba(20, 20, 30, 0.16));
+    }
+
+    .wheel-ring {
+      position: absolute;
+      inset: -10px;
+      border: 2px solid rgba(255, 255, 255, 0.9);
+      border-radius: 50%;
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(218, 226, 235, 0.55));
+      box-shadow:
+        inset 0 0 0 10px rgba(255, 255, 255, 0.42),
+        inset 0 -18px 40px rgba(17, 24, 39, 0.08);
+    }
+
+    .rotator {
+      position: absolute;
+      inset: 0;
+      transform: rotate(0deg);
+      transition: transform var(--spin-duration) cubic-bezier(0.12, 0.72, 0.18, 1);
+      will-change: transform;
+      transform-origin: 50% 50%;
+    }
+
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 50%;
+    }
+
+    .pointer {
+      position: absolute;
+      top: -18px;
+      left: 50%;
+      z-index: 5;
+      width: clamp(42px, 8vw, 64px);
+      height: clamp(48px, 9vw, 72px);
+      transform: translateX(-50%);
+      filter: drop-shadow(0 10px 12px rgba(199, 75, 0, 0.35));
+      pointer-events: none;
+    }
+
+    .pointer::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      clip-path: polygon(50% 100%, 2% 0, 98% 0);
+      border-radius: 14px;
+      background:
+        linear-gradient(180deg, #ffb258 0%, #ff7a1a 48%, #e85f00 100%);
+      box-shadow:
+        inset 0 0 0 4px rgba(255, 255, 255, 0.75),
+        inset 0 -8px 14px rgba(117, 43, 0, 0.22);
+    }
+
+    .center-badge {
+      position: absolute;
+      z-index: 4;
+      top: 50%;
+      left: 50%;
+      width: clamp(108px, 20vw, 162px);
+      height: clamp(108px, 20vw, 162px);
+      transform: translate(-50%, -50%);
+      border: clamp(6px, 1.1vw, 9px) solid rgba(255, 255, 255, 0.93);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.32), transparent 30%),
+        linear-gradient(145deg, #1f2937, #111827);
+      box-shadow:
+        0 16px 34px rgba(17, 24, 39, 0.28),
+        inset 0 0 0 2px rgba(255, 214, 153, 0.55);
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .center-badge::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      box-shadow: inset 0 -22px 26px rgba(0, 0, 0, 0.22);
+      pointer-events: none;
+    }
+
+    .center-mascot {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scale(1.06);
+    }
+
+    .center-fallback {
+      display: grid;
+      width: 100%;
+      height: 100%;
+      place-items: center;
+      color: white;
+      font-size: clamp(38px, 7vw, 64px);
+      background:
+        radial-gradient(circle at 50% 30%, rgba(255, 122, 26, 0.36), transparent 36%),
+        linear-gradient(145deg, #263244, #111827);
+    }
+
+    .actions {
+      width: min(720px, 100%);
+      margin: 22px auto 0;
+    }
+
+    .spin-btn {
+      width: min(520px, 100%);
+      min-height: 64px;
+      padding: 16px 28px;
+      border: 0;
+      border-radius: 999px;
+      color: white;
+      cursor: pointer;
+      font-size: clamp(22px, 4vw, 32px);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      background:
+        linear-gradient(180deg, #ff9d35, var(--orange) 50%, var(--orange-dark) 100%);
+      box-shadow:
+        0 14px 28px rgba(255, 122, 26, 0.34),
+        inset 0 2px 1px rgba(255, 255, 255, 0.42),
+        inset 0 -4px 0 rgba(131, 46, 0, 0.22);
+      transition: transform 160ms ease, filter 160ms ease, opacity 160ms ease;
+    }
+
+    .spin-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.02);
+    }
+
+    .spin-btn:active {
+      transform: translateY(2px);
+    }
+
+    .spin-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.72;
+      transform: none;
+    }
+
+    .result-panel {
+      margin: 18px auto 0;
+      padding: 18px;
+      border: 1px solid rgba(21, 32, 51, 0.08);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.8);
+      box-shadow:
+        0 12px 28px rgba(17, 24, 39, 0.08),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+    }
+
+    .result-label {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .result {
+      margin: 6px 0 0;
+      min-height: 38px;
+      font-size: clamp(22px, 4vw, 34px);
+      line-height: 1.2;
+      font-weight: 950;
+      letter-spacing: -0.04em;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .map-link,
+    .count-pill,
+    .pool-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 38px;
+      padding: 8px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      font-size: 15px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .map-link {
+      color: var(--blue);
+    }
+
+    .map-link[aria-disabled="true"] {
+      color: #98a2b3;
+      pointer-events: none;
+    }
+
+    .count-pill,
+    .pool-pill {
+      color: #344054;
+    }
+
+    .gym-list {
+      width: min(780px, 100%);
+      margin: 18px auto 0;
+      text-align: left;
+    }
+
+    details {
+      border: 1px solid rgba(21, 32, 51, 0.08);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.62);
+      overflow: hidden;
+    }
+
+    summary {
+      cursor: pointer;
+      padding: 14px 16px;
+      color: #344054;
+      font-weight: 900;
+      list-style: none;
+    }
+
+    summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .gym-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
+      padding: 0 16px 16px;
+      margin: 0;
+      list-style: none;
+    }
+
+    .gym-grid li {
+      padding: 10px 12px;
+      border-radius: 14px;
+      color: #344054;
+      background: rgba(255, 255, 255, 0.74);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .note {
+      width: min(780px, 100%);
+      margin: 14px auto 0;
+      color: #667085;
+      font-size: 13px;
+      line-height: 1.55;
+      text-align: left;
+    }
+
+    @media (max-width: 520px) {
+      .page {
+        padding-top: 22px;
+      }
+
+      .roulette-card {
+        border-radius: 26px;
+      }
+
+      .wheel-wrap {
+        --wheel-size: min(92vw, 520px);
+      }
+
+      .result-panel {
+        padding: 15px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rotator,
+      .spin-btn {
+        transition: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div class="eyebrow">🧗 오늘의 암장 뽑기</div>
+      <h1>클라이밍장 랜덤 룰렛</h1>
+      <p class="subtitle">서울·경기권 클라이밍장 중 오늘 갈 곳을 정확하게 뽑아줍니다.</p>
+    </header>
+
+    <section class="roulette-card" aria-label="클라이밍장 랜덤 룰렛">
+      <div class="wheel-wrap">
+        <div class="wheel-ring" aria-hidden="true"></div>
+        <div class="rotator" id="rotator">
+          <canvas id="wheel" aria-hidden="true"></canvas>
+        </div>
+        <div class="pointer" aria-hidden="true"></div>
+
+        <div class="center-badge" aria-hidden="true">
+          <!--
+            네가 최근에 만든 렛서팬더 이미지 파일을 아래 경로로 넣으면 중앙에 표시됨.
+            GitHub 업로드 구조:
+            index.html
+            assets/red-panda.png
+          -->
+          <img
+            class="center-mascot"
+            src="./assets/red-panda.png"
+            alt=""
+            onerror="this.remove(); document.querySelector('.center-fallback').hidden = false;"
+          />
+          <div class="center-fallback" hidden>🐼</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="spin-btn" id="spin" type="button">✦ 돌리기</button>
+
+        <div class="result-panel" aria-live="polite">
+          <p class="result-label">RESULT</p>
+          <p class="result" id="result">결과가 여기에 표시됩니다</p>
+
+          <div class="meta-row">
+            <a class="map-link" id="map-link" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true">
+              📍 지도에서 보기
+            </a>
+            <span class="count-pill" id="count">오늘 돌린 횟수: 0회</span>
+            <span class="pool-pill" id="pool-count">후보: 0곳</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="gym-list">
+        <details>
+          <summary>룰렛 후보 목록 보기</summary>
+          <ul class="gym-grid" id="gym-list"></ul>
+        </details>
+      </div>
+
+      <p class="note">
+        중앙 이미지는 <strong>assets/red-panda.png</strong> 파일명으로 넣으면 자동 표시됩니다.
+        이미지가 없어도 룰렛은 정상 작동하며, 기본 이모지로 대체됩니다.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    /**
+     * 지도 링크는 직접 단축 URL을 넣지 않고 Google Maps 검색 URL을 자동 생성합니다.
+     * 지점명이 조금 바뀌어도 검색으로 열리기 때문에 GitHub Pages에서 관리하기 쉽습니다.
+     */
+    const GYMS = [
+      { name: "더클라임 양재점", area: "서울 강남권" },
+      { name: "더클라임 신사점", area: "서울 강남권" },
+      { name: "더클라임 논현점", area: "서울 강남권" },
+      { name: "더클라임 강남점", area: "서울 강남권" },
+      { name: "더클라임 연남점", area: "서울 마포권" },
+      { name: "더클라임 홍대점", area: "서울 마포권" },
+      { name: "더클라임 마곡점", area: "서울 강서권" },
+      { name: "더클라임 신림점", area: "서울 관악권" },
+      { name: "더클라임 서울대점", area: "서울 관악권" },
+      { name: "더클라임 사당점", area: "서울 관악권" },
+
+      { name: "클라이밍파크 신논현", area: "서울 강남권" },
+      { name: "클라이밍파크 성수", area: "서울 성동권" },
+      { name: "클라이밍파크 종로", area: "서울 종로권" },
+      { name: "클라이밍파크 한티", area: "서울 강남권" },
+      { name: "클라이밍파크 강남", area: "서울 강남권" },
+
+      { name: "서울숲클라이밍 잠실", area: "서울 송파권" },
+      { name: "서울숲클라이밍 구로", area: "서울 구로권" },
+      { name: "서울숲클라이밍 뚝섬", area: "서울 성동권" },
+      { name: "서울숲클라이밍 영등포", area: "서울 영등포권" },
+      { name: "서울숲클라이밍 종로", area: "서울 종로권" },
+
+      { name: "피커스 종로", area: "서울 종로권" },
+      { name: "피커스 신촌", area: "서울 서대문권" },
+      { name: "피커스 구로", area: "서울 구로권" },
+
+      { name: "더클라임 일산점", area: "경기 고양" },
+      { name: "볼더프렌즈 홍대", area: "서울 마포권" },
+      { name: "손상원 클라이밍짐 강남", area: "서울 강남권" },
+      { name: "손상원 클라이밍짐 을지로", area: "서울 중구권" },
+      { name: "더볼더 클라이밍 미금", area: "경기 성남" },
+      { name: "캐치스톤 부천", area: "경기 부천" },
+      { name: "볼더랜드 강남", area: "서울 서초권" }
+    ];
+
+    const CONFIG = {
+      spinRoundsMin: 6,
+      spinRoundsMax: 9,
+      spinDurationMs: 4200,
+      pointerAngleDeg: -90
+    };
+
+    const canvas = document.getElementById("wheel");
+    const ctx = canvas.getContext("2d");
+    const rotator = document.getElementById("rotator");
+    const spinBtn = document.getElementById("spin");
+    const resultEl = document.getElementById("result");
+    const mapLink = document.getElementById("map-link");
+    const countEl = document.getElementById("count");
+    const poolCountEl = document.getElementById("pool-count");
+    const gymListEl = document.getElementById("gym-list");
+
+    let currentRotation = 0;
+    let isSpinning = false;
+
+    function mapsUrl(name) {
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + " 클라이밍")}`;
+    }
+
+    function todayKey() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      return `climbingRouletteSpinCount:${yyyy}-${mm}-${dd}`;
+    }
+
+    function getSpinCount() {
+      return Number(localStorage.getItem(todayKey()) || "0");
+    }
+
+    function setSpinCount(count) {
+      localStorage.setItem(todayKey(), String(count));
+      countEl.textContent = `오늘 돌린 횟수: ${count}회`;
+    }
+
+    function updateCount() {
+      countEl.textContent = `오늘 돌린 횟수: ${getSpinCount()}회`;
+    }
+
+    function secureRandomIndex(max) {
+      if (!Number.isInteger(max) || max <= 0) {
+        throw new Error("Invalid max value.");
+      }
+
+      if (!window.crypto || !window.crypto.getRandomValues) {
+        return Math.floor(Math.random() * max);
+      }
+
+      const range = 0x100000000;
+      const limit = range - (range % max);
+      const buffer = new Uint32Array(1);
+
+      do {
+        window.crypto.getRandomValues(buffer);
+      } while (buffer[0] >= limit);
+
+      return buffer[0] % max;
+    }
+
+    function randomInt(min, max) {
+      return min + secureRandomIndex(max - min + 1);
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawWheel(rect.width, rect.height);
+    }
+
+    function fitFontSize(ctx, text, maxWidth, initialSize, minSize) {
+      let size = initialSize;
+      while (size > minSize) {
+        ctx.font = `900 ${size}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        if (ctx.measureText(text).width <= maxWidth) {
+          return size;
+        }
+        size -= 0.5;
+      }
+      return minSize;
+    }
+
+    function drawWheel(width, height) {
+      const cx = width / 2;
+      const cy = height / 2;
+      const radius = Math.min(cx, cy) - 4;
+      const innerRadius = radius * 0.19;
+      const slice = (Math.PI * 2) / GYMS.length;
+      const startOffset = -Math.PI / 2 - slice / 2;
+
+      ctx.clearRect(0, 0, width, height);
+
+      // Outer shadow/rim base
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.restore();
+
+      for (let i = 0; i < GYMS.length; i++) {
+        const start = startOffset + i * slice;
+        const end = start + slice;
+        const mid = start + slice / 2;
+
+        const hue = Math.round((i * 360) / GYMS.length);
+        const gradient = ctx.createRadialGradient(cx, cy, innerRadius, cx, cy, radius);
+        gradient.addColorStop(0, `hsl(${hue}, 86%, 63%)`);
+        gradient.addColorStop(0.72, `hsl(${hue}, 86%, 57%)`);
+        gradient.addColorStop(1, `hsl(${hue}, 78%, 48%)`);
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius, start, end);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.82)";
+        ctx.lineWidth = Math.max(1.2, radius * 0.006);
+        ctx.stroke();
+
+        // Text
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(mid);
+        const textRadius = radius * 0.82;
+        const maxTextWidth = radius * 0.45;
+        const label = GYMS[i].name;
+        const fontSize = fitFontSize(ctx, label, maxTextWidth, Math.max(11, radius * 0.032), 8.5);
+
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.font = `900 ${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.lineWidth = Math.max(3, fontSize * 0.32);
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.22)";
+        ctx.fillStyle = "#ffffff";
+
+        // 왼쪽 반원 텍스트는 뒤집어서 읽기 쉽게 처리
+        if (Math.cos(mid) < -0.08) {
+          ctx.rotate(Math.PI);
+          ctx.textAlign = "left";
+          ctx.strokeText(label, -textRadius, 0);
+          ctx.fillText(label, -textRadius, 0);
+        } else {
+          ctx.strokeText(label, textRadius, 0);
+          ctx.fillText(label, textRadius, 0);
+        }
+
+        ctx.restore();
+
+        // Number badge
+        ctx.save();
+        const badgeRadius = radius * 0.925;
+        const bx = cx + Math.cos(mid) * badgeRadius;
+        const by = cy + Math.sin(mid) * badgeRadius;
+        const br = Math.max(10, radius * 0.035);
+
+        ctx.beginPath();
+        ctx.arc(bx, by, br, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(17, 24, 39, 0.13)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = "#111827";
+        ctx.font = `900 ${Math.max(9, br * 0.95)}px system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(i + 1), bx, by + 0.5);
+        ctx.restore();
+      }
+
+      // Inner cover to hide wedge tips
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, innerRadius * 1.45, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(17, 24, 39, 0.08)";
+      ctx.lineWidth = radius * 0.015;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function normalizeDeg(deg) {
+      return ((deg % 360) + 360) % 360;
+    }
+
+    function targetRotationForIndex(index) {
+      const degreesPerSlice = 360 / GYMS.length;
+
+      // drawWheel에서 0번 조각의 중심이 12시 방향에 오도록 그렸기 때문에,
+      // 선택 index를 12시 포인터에 맞추려면 -index * degreesPerSlice 만큼 회전하면 됨.
+      const targetModulo = normalizeDeg(-index * degreesPerSlice);
+      const currentModulo = normalizeDeg(currentRotation);
+      let delta = targetModulo - currentModulo;
+
+      if (delta < 0) {
+        delta += 360;
+      }
+
+      const extraRounds = randomInt(CONFIG.spinRoundsMin, CONFIG.spinRoundsMax) * 360;
+      return currentRotation + extraRounds + delta;
+    }
+
+    function renderGymList() {
+      gymListEl.innerHTML = "";
+      GYMS.forEach((gym, index) => {
+        const li = document.createElement("li");
+        li.textContent = `${index + 1}. ${gym.name} · ${gym.area}`;
+        gymListEl.appendChild(li);
+      });
+    }
+
+    function showResult(gym) {
+      resultEl.textContent = `${gym.name} 당첨!`;
+      mapLink.href = mapsUrl(gym.name);
+      mapLink.setAttribute("aria-disabled", "false");
+      mapLink.textContent = "📍 지도에서 보기";
+    }
+
+    function spinWheel() {
+      if (isSpinning) {
+        return;
+      }
+
+      isSpinning = true;
+      spinBtn.disabled = true;
+      spinBtn.textContent = "돌아가는 중...";
+      resultEl.textContent = "룰렛 회전 중";
+      mapLink.href = "#";
+      mapLink.setAttribute("aria-disabled", "true");
+
+      const selectedIndex = secureRandomIndex(GYMS.length);
+      const selectedGym = GYMS[selectedIndex];
+      const finalRotation = targetRotationForIndex(selectedIndex);
+
+      currentRotation = finalRotation;
+      rotator.style.transform = `rotate(${currentRotation}deg)`;
+
+      const finish = () => {
+        showResult(selectedGym);
+        setSpinCount(getSpinCount() + 1);
+        spinBtn.disabled = false;
+        spinBtn.textContent = "✦ 돌리기";
+        isSpinning = false;
+      };
+
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (prefersReducedMotion) {
+        finish();
+        return;
+      }
+
+      window.setTimeout(finish, CONFIG.spinDurationMs + 80);
+    }
+
+    function init() {
+      document.documentElement.style.setProperty("--spin-duration", `${CONFIG.spinDurationMs}ms`);
+      poolCountEl.textContent = `후보: ${GYMS.length}곳`;
+      updateCount();
+      renderGymList();
+      resizeCanvas();
+      spinBtn.addEventListener("click", spinWheel);
+      window.addEventListener("resize", resizeCanvas);
+    }
+
+    document.addEventListener("DOMContentLoaded", init);
+  </script>
+</body>
+</html>
